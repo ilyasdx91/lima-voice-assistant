@@ -96,6 +96,10 @@ $font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sa
   box-sizing: border-box;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: $font-family;
   background: radial-gradient(circle, rgb(42, 112, 155) 0%, rgb(42, 48, 155) 100%);
@@ -103,10 +107,14 @@ body {
   line-height: $leading-normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  max-width: 100vw;
 }
 
 #app {
   min-height: 100vh;
+
+  max-width: 100vw;
 }
 
 // Button base styles
@@ -126,4 +134,5 @@ body {
   padding: 0 16px;
   max-width: 1280px;
   margin: 0 auto;
+  width: 100%;
 }
