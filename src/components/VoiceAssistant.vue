@@ -32,7 +32,10 @@
     </div>
 
     <div class="robot-txt">
-      <p>✨ Готов помочь! О чём поговорим?</p>
+      <p v-if="!transcribedText && !errorMessage && !isProcessing">✨ Готов помочь! О чём поговорим?</p>
+      <p v-else-if="isProcessing" class="processing">🔄 Обрабатываю запись...</p>
+      <p v-else-if="errorMessage" class="error">❌ {{ errorMessage }}</p>
+      <p v-else-if="transcribedText" class="transcribed">💬 {{ transcribedText }}</p>
     </div>
 
     <button 
@@ -56,17 +59,61 @@
 
 <script setup>
 import { ref } from 'vue'
+import { AudioRecorder } from '@/services/audioRecorder.js'
+import { SpeechToTextService } from '@/services/speechToText.js'
 
 const isRecording = ref(false)
+const isProcessing = ref(false)
+const transcribedText = ref('')
+const errorMessage = ref('')
 
-const startRecording = () => {
-  isRecording.value = true
-  console.log('Recording started')
+// Initialize services
+const audioRecorder = new AudioRecorder()
+const speechService = new SpeechToTextService(import.meta.env.VITE_OPENAI_API_KEY)
+
+const startRecording = async () => {
+  try {
+    errorMessage.value = ''
+    
+    if (!AudioRecorder.isSupported()) {
+      throw new Error('Audio recording not supported in this browser')
+    }
+
+    await audioRecorder.startRecording()
+    isRecording.value = true
+    console.log('🎤 Recording started')
+  } catch (error) {
+    console.error('Failed to start recording:', error)
+    errorMessage.value = error.message
+  }
 }
 
-const stopRecording = () => {
-  isRecording.value = false
-  console.log('Recording stopped')
+const stopRecording = async () => {
+  try {
+    if (!audioRecorder.isRecording) return
+
+    isRecording.value = false
+    isProcessing.value = true
+    console.log('🛑 Recording stopped, processing...')
+
+    // Stop recording and get audio blob
+    const audioBlob = await audioRecorder.stopRecording()
+    
+    // Send to Whisper API for transcription
+    const text = await speechService.transcribeAudio(audioBlob, {
+      language: 'ru',
+      model: 'whisper-1'
+    })
+
+    transcribedText.value = text
+    console.log('✅ Transcription:', text)
+
+  } catch (error) {
+    console.error('Failed to process recording:', error)
+    errorMessage.value = error.message
+  } finally {
+    isProcessing.value = false
+  }
 }
 </script>
 
@@ -97,6 +144,7 @@ const stopRecording = () => {
     color: #f5f5f5;
     margin: 0;
     word-break: break-word;
+    font-weight: 400;
   }
 
   .robots {
@@ -198,6 +246,19 @@ const stopRecording = () => {
 
     p {
       margin: 0;
+      
+      &.processing {
+        color: #71BBF0;
+        animation: pulse-text 1.5s infinite;
+      }
+      
+      &.error {
+        color: #ff6b6b;
+      }
+      
+      &.transcribed {
+        color: #4ECDC4;
+      }
     }
   }
 
@@ -267,6 +328,15 @@ const stopRecording = () => {
   50% {
     transform: scale(1.02);
     box-shadow: 0 0 25px rgba(0, 144, 216, 0.7), 0 0 40px rgba(0, 144, 216, 0.3);
+  }
+}
+
+@keyframes pulse-text {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
