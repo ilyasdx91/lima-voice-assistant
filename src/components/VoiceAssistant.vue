@@ -32,9 +32,10 @@
     </div>
 
     <div class="robot-txt">
-      <p v-if="!transcribedText && !errorMessage && !isProcessing">✨ Готов помочь! О чём поговорим?</p>
+      <p v-if="!transcribedText && !errorMessage && !isProcessing && !assistantResponse">✨ Готов помочь! О чём поговорим?</p>
       <p v-else-if="isProcessing" class="processing">🔄 Обрабатываю запись...</p>
       <p v-else-if="errorMessage" class="error">❌ {{ errorMessage }}</p>
+      <p v-else-if="assistantResponse" class="assistant-response">🤖 {{ assistantResponse }}</p>
       <p v-else-if="transcribedText" class="transcribed">💬 {{ transcribedText }}</p>
     </div>
 
@@ -61,18 +62,24 @@
 import { ref } from 'vue'
 import { AudioRecorder } from '@/services/audioRecorder.js'
 import { SpeechToTextService } from '@/services/speechToText.js'
+import { AssistantApiService } from '@/services/assistantApi.js'
 
 const isRecording = ref(false)
 const isProcessing = ref(false)
 const transcribedText = ref('')
+const assistantResponse = ref('')
 const errorMessage = ref('')
 
 // Initialize services
 const audioRecorder = new AudioRecorder()
 const speechService = new SpeechToTextService(import.meta.env.VITE_OPENAI_API_KEY)
+const assistantApi = new AssistantApiService(import.meta.env.VITE_API_BASE_URL)
 
 const startRecording = async () => {
   try {
+    // Prevent duplicate calls
+    if (isRecording.value || isProcessing.value) return
+    
     errorMessage.value = ''
     
     if (!AudioRecorder.isSupported()) {
@@ -90,7 +97,8 @@ const startRecording = async () => {
 
 const stopRecording = async () => {
   try {
-    if (!audioRecorder.isRecording) return
+    // Prevent duplicate calls
+    if (!audioRecorder.isRecording || isProcessing.value) return
 
     isRecording.value = false
     isProcessing.value = true
@@ -107,6 +115,13 @@ const stopRecording = async () => {
 
     transcribedText.value = text
     console.log('✅ Transcription:', text)
+
+    // Send transcribed text to assistant API
+    console.log('🤖 Sending to assistant API...')
+    const apiResponse = await assistantApi.sendQuery(text)
+    
+    assistantResponse.value = apiResponse.response || apiResponse.message || 'Получен ответ от ассистента'
+    console.log('✅ Assistant response:', assistantResponse.value)
 
   } catch (error) {
     console.error('Failed to process recording:', error)
@@ -258,6 +273,11 @@ const stopRecording = async () => {
       
       &.transcribed {
         color: #4ECDC4;
+      }
+      
+      &.assistant-response {
+        color: #71BBF0;
+        font-weight: 500;
       }
     }
   }
