@@ -107,14 +107,18 @@ body {
   line-height: $leading-normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  overflow: hidden;
 
   max-width: 100vw;
 }
 
+
 #app {
   min-height: 100vh;
-
   max-width: 100vw;
+  position: relative;
+  z-index: 1;
 }
 
 // Button base styles

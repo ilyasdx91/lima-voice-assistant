@@ -85,6 +85,7 @@ const errorMessage = ref('')
 
 // Abort controller for canceling previous requests
 let currentAbortController = null
+let requestCounter = 0 // Counter to track requests
 
 // Initialize services
 const audioRecorder = new AudioRecorder()
@@ -150,9 +151,11 @@ const stopRecording = async () => {
     isRecording.value = false
     isProcessing.value = true
     
-    // Create new abort controller for this request
+    // Create new abort controller and increment counter for this request
     currentAbortController = new AbortController()
     const signal = currentAbortController.signal
+    const thisRequestId = ++requestCounter
+    console.log(`🆔 Starting request #${thisRequestId}`)
     
     console.log('🛑 Recording stopped, processing...')
 
@@ -169,9 +172,9 @@ const stopRecording = async () => {
     transcribedText.value = text
     console.log('✅ Transcription:', text)
 
-    // Check if request was cancelled
-    if (signal.aborted) {
-      console.log('⚠️ Request was cancelled')
+    // Check if request was cancelled or superseded by newer request
+    if (signal.aborted || thisRequestId !== requestCounter) {
+      console.log(`⚠️ Request #${thisRequestId} was cancelled or superseded (current: ${requestCounter})`)
       return
     }
 
@@ -187,18 +190,32 @@ const stopRecording = async () => {
     const apiResponse = await assistantApi.sendQuery(text, signal)
     
     const responseText = apiResponse.response || apiResponse.message || 'Получен ответ от ассистента'
+    
+    // Check if this is still the latest request before showing response
+    if (thisRequestId !== requestCounter) {
+      console.log(`⚠️ Request #${thisRequestId} superseded before showing response (current: ${requestCounter})`)
+      isProcessing.value = false
+      return
+    }
+    
     assistantResponse.value = responseText
     isProcessing.value = false // Stop processing indicator immediately after getting response
-    console.log('✅ Assistant response:', responseText)
+    console.log(`✅ Assistant response for request #${thisRequestId}:`, responseText)
 
-    // Check if request was cancelled before TTS
-    if (signal.aborted) {
-      console.log('⚠️ Request was cancelled before TTS')
+    // Check if request was cancelled or superseded before TTS
+    if (signal.aborted || thisRequestId !== requestCounter) {
+      console.log(`⚠️ Request #${thisRequestId} was cancelled or superseded before TTS (current: ${requestCounter})`)
       return
     }
 
     // Convert response to speech (if enabled)
     if (props.settings?.enableTTS !== false) { // Default to true if not set
+      // Stop any current TTS before starting new one
+      if (isSpeaking.value) {
+        ttsService.stopCurrentAudio()
+        console.log('🔇 Stopped previous TTS for new response')
+      }
+      
       isSpeaking.value = true
       try {
         ttsService.apiKey = getApiKey()
@@ -211,7 +228,10 @@ const stopRecording = async () => {
         console.error('TTS error:', ttsError)
         // Don't throw - show text response even if speech fails
       } finally {
-        isSpeaking.value = false
+        // Only set to false if TTS wasn't interrupted by new request and this is still the latest
+        if (!signal.aborted && thisRequestId === requestCounter) {
+          isSpeaking.value = false
+        }
       }
     }
 
