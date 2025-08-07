@@ -14,6 +14,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,webp,woff,woff2}'],
+        maximumFileSizeToCacheInBytes: 5000000, // 5MB limit for large images
         runtimeCaching: [
           // Cache images aggressively
           {
@@ -24,30 +25,6 @@ export default defineConfig({
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-              }
-            }
-          },
-          // Cache OpenAI API requests briefly  
-          {
-            urlPattern: /^https:\/\/api\.openai\.com\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'openai-api-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 // 1 hour
-              }
-            }
-          },
-          // Cache backend API requests
-          {
-            urlPattern: /.*\.ngrok-free\.app.*/i,
-            handler: 'NetworkFirst', 
-            options: {
-              cacheName: 'backend-api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 5 // 5 minutes
               }
             }
           }

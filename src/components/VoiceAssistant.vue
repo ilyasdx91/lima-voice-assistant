@@ -95,7 +95,7 @@ const getApiKey = () => {
 }
 
 const getApiUrl = () => {
-  const url = props.settings?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL
+  const url = props.settings?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL || 'https://2772de394ff5.ngrok-free.app/api/assistant/query'
   console.log('🎯 Settings API URL:', props.settings?.apiBaseUrl)
   console.log('🌍 ENV API URL:', import.meta.env.VITE_API_BASE_URL)
   console.log('✅ Final API URL:', url)
@@ -103,7 +103,7 @@ const getApiUrl = () => {
 }
 
 const speechService = new SpeechToTextService()
-const assistantApi = new AssistantApiService(import.meta.env.VITE_API_BASE_URL)
+const assistantApi = new AssistantApiService(import.meta.env.VITE_API_BASE_URL || 'https://2772de394ff5.ngrok-free.app/api/assistant/query')
 const ttsService = new TextToSpeechService()
 
 const startRecording = async () => {
@@ -179,9 +179,11 @@ const stopRecording = async () => {
     console.log('🤖 Sending to assistant API...')
     const apiUrl = getApiUrl()
     console.log('🔗 API URL:', apiUrl)
+    console.log('🔗 AssistantApi baseUrl BEFORE:', assistantApi.baseUrl)
     if (apiUrl) {
       assistantApi.baseUrl = apiUrl
     }
+    console.log('🔗 AssistantApi baseUrl AFTER:', assistantApi.baseUrl)
     const apiResponse = await assistantApi.sendQuery(text, signal)
     
     const responseText = apiResponse.response || apiResponse.message || 'Получен ответ от ассистента'
@@ -229,7 +231,7 @@ const stopRecording = async () => {
 </script>
 
 <style scoped lang="scss">
-@import '@/assets/scss/main.scss';
+@use '@/assets/scss/main.scss' as *;
 
 .voice-assistant {
   text-align: center;

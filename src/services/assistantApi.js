@@ -1,7 +1,7 @@
 // Lima Voice Assistant Backend API Service
 export class AssistantApiService {
   constructor(baseUrl) {
-    this.baseUrl = baseUrl || import.meta.env.VITE_API_BASE_URL
+    this.baseUrl = baseUrl || import.meta.env.VITE_API_BASE_URL || 'https://2772de394ff5.ngrok-free.app/api/assistant/query'
   }
 
   /**

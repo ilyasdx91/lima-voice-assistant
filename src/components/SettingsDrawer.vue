@@ -180,9 +180,9 @@ const loadSettings = () => {
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings)
       
-      // Fix old API URL if it doesn't include the full path
-      if (parsed.apiBaseUrl && !parsed.apiBaseUrl.includes('/api/assistant/query')) {
-        delete parsed.apiBaseUrl // Remove incorrect URL, will use env default
+      // Fix old API URL - force refresh to new URL
+      if (parsed.apiBaseUrl && parsed.apiBaseUrl.includes('e8a2cb152faa.ngrok-free.app')) {
+        delete parsed.apiBaseUrl // Remove old ngrok URL, will use new env default
       }
       
       Object.assign(settings, parsed)
@@ -194,7 +194,7 @@ const loadSettings = () => {
       settings.openaiApiKey = ''
     }
     if (!settings.apiBaseUrl) {
-      settings.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
+      settings.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://2772de394ff5.ngrok-free.app/api/assistant/query'
     }
   } catch (error) {
     console.error('Failed to load settings:', error)
@@ -243,7 +243,7 @@ defineExpose({
 </script>
 
 <style scoped lang="scss">
-@import '@/assets/scss/main.scss';
+@use '@/assets/scss/main.scss' as *;
 
 .settings-overlay {
   position: fixed;
