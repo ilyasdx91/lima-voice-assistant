@@ -180,9 +180,13 @@ const loadSettings = () => {
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings)
       
-      // Fix old API URL - force refresh to new URL
-      if (parsed.apiBaseUrl && parsed.apiBaseUrl.includes('e8a2cb152faa.ngrok-free.app')) {
-        delete parsed.apiBaseUrl // Remove old ngrok URL, will use new env default
+      // Fix old API URLs - force refresh to new URL
+      if (parsed.apiBaseUrl && (
+        parsed.apiBaseUrl.includes('e8a2cb152faa.ngrok-free.app') ||
+        parsed.apiBaseUrl.includes('05dcb94d8958.ngrok-free.app')
+      )) {
+        delete parsed.apiBaseUrl // Remove old ngrok URLs, will use new env default
+        console.log('🧹 Removed old ngrok URL from localStorage')
       }
       
       Object.assign(settings, parsed)

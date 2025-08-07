@@ -12,24 +12,7 @@ export default defineConfig({
     vueDevTools(),
     VitePWA({
       registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,webp,woff,woff2}'],
-        maximumFileSizeToCacheInBytes: 5000000, // 5MB limit for large images
-        runtimeCaching: [
-          // Cache images aggressively
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-              }
-            }
-          }
-        ]
-      },
+      includeAssets: ['favicon.ico', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Lima Voice Assistant',
         short_name: 'Lima',
@@ -40,11 +23,25 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        categories: ['productivity', 'utilities'],
+        lang: 'ru',
         icons: [
           {
             src: '/favicon.ico',
-            sizes: '64x64 32x32 24x24 16x16',
+            sizes: '32x32',
             type: 'image/x-icon'
+          },
+          {
+            src: '/pwa-192x192.png', 
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512', 
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
