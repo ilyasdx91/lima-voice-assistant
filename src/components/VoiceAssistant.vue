@@ -35,7 +35,10 @@
       <p v-if="!transcribedText && !errorMessage && !isProcessing && !assistantResponse">✨ Готов помочь! О чём поговорим?</p>
       <p v-else-if="isProcessing" class="processing">🔄 Обрабатываю запись...</p>
       <p v-else-if="errorMessage" class="error">❌ {{ errorMessage }}</p>
-      <p v-else-if="assistantResponse" class="assistant-response">🤖 {{ assistantResponse }}</p>
+      <p v-else-if="assistantResponse" class="assistant-response" :class="{ speaking: isSpeaking }">
+        🤖 {{ assistantResponse }}
+        <span v-if="isSpeaking" class="speaking-indicator">🔊</span>
+      </p>
       <p v-else-if="transcribedText" class="transcribed">💬 {{ transcribedText }}</p>
     </div>
 
@@ -63,9 +66,11 @@ import { ref } from 'vue'
 import { AudioRecorder } from '@/services/audioRecorder.js'
 import { SpeechToTextService } from '@/services/speechToText.js'
 import { AssistantApiService } from '@/services/assistantApi.js'
+import { TextToSpeechService } from '@/services/textToSpeech.js'
 
 const isRecording = ref(false)
 const isProcessing = ref(false)
+const isSpeaking = ref(false)
 const transcribedText = ref('')
 const assistantResponse = ref('')
 const errorMessage = ref('')
@@ -74,6 +79,7 @@ const errorMessage = ref('')
 const audioRecorder = new AudioRecorder()
 const speechService = new SpeechToTextService(import.meta.env.VITE_OPENAI_API_KEY)
 const assistantApi = new AssistantApiService(import.meta.env.VITE_API_BASE_URL)
+const ttsService = new TextToSpeechService(import.meta.env.VITE_OPENAI_API_KEY)
 
 const startRecording = async () => {
   try {
@@ -120,8 +126,24 @@ const stopRecording = async () => {
     console.log('🤖 Sending to assistant API...')
     const apiResponse = await assistantApi.sendQuery(text)
     
-    assistantResponse.value = apiResponse.response || apiResponse.message || 'Получен ответ от ассистента'
-    console.log('✅ Assistant response:', assistantResponse.value)
+    const responseText = apiResponse.response || apiResponse.message || 'Получен ответ от ассистента'
+    assistantResponse.value = responseText
+    console.log('✅ Assistant response:', responseText)
+
+    // Convert response to speech
+    isSpeaking.value = true
+    try {
+      await ttsService.speakText(responseText, {
+        voice: 'nova', // Female Russian voice
+        model: 'tts-1',
+        speed: 1.0
+      })
+    } catch (ttsError) {
+      console.error('TTS error:', ttsError)
+      // Don't throw - show text response even if speech fails
+    } finally {
+      isSpeaking.value = false
+    }
 
   } catch (error) {
     console.error('Failed to process recording:', error)
@@ -278,6 +300,16 @@ const stopRecording = async () => {
       &.assistant-response {
         color: #71BBF0;
         font-weight: 500;
+        
+        &.speaking {
+          animation: pulse-text 1.5s infinite;
+        }
+        
+        .speaking-indicator {
+          display: inline-block;
+          margin-left: 8px;
+          animation: pulse-speaker 0.8s infinite;
+        }
       }
     }
   }
@@ -357,6 +389,17 @@ const stopRecording = async () => {
   }
   50% {
     opacity: 1;
+  }
+}
+
+@keyframes pulse-speaker {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
   }
 }
 
