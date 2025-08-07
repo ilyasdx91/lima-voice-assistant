@@ -26,7 +26,7 @@
         </div>
       </div>
 
-      <button class="btn btn-settings">
+      <button class="btn btn-settings" @click="openSettings">
         <svg  width="26" height="26" viewBox="0 0 24 24">
           <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path
@@ -41,7 +41,11 @@
 </template>
 
 <script setup>
+const emit = defineEmits(['openSettings'])
 
+const openSettings = () => {
+  emit('openSettings')
+}
 </script>
 
 <style scoped lang="scss">
