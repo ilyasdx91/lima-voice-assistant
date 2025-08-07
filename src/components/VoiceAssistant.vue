@@ -83,6 +83,9 @@ const transcribedText = ref('')
 const assistantResponse = ref('')
 const errorMessage = ref('')
 
+// Abort controller for canceling previous requests
+let currentAbortController = null
+
 // Initialize services
 const audioRecorder = new AudioRecorder()
 
@@ -105,10 +108,26 @@ const ttsService = new TextToSpeechService()
 
 const startRecording = async () => {
   try {
+    // Stop current TTS if playing
+    if (isSpeaking.value) {
+      ttsService.stopCurrentAudio()
+      isSpeaking.value = false
+      console.log('🔇 Stopped current TTS playback')
+    }
+    
+    // Cancel previous API requests
+    if (currentAbortController) {
+      currentAbortController.abort()
+      console.log('⚠️ Cancelled previous request')
+    }
+    
+    // Clear previous responses
+    assistantResponse.value = ''
+    transcribedText.value = ''
+    errorMessage.value = ''
+    
     // Prevent duplicate calls
     if (isRecording.value || isProcessing.value) return
-    
-    errorMessage.value = ''
     
     if (!AudioRecorder.isSupported()) {
       throw new Error('Audio recording not supported in this browser')
@@ -130,6 +149,11 @@ const stopRecording = async () => {
 
     isRecording.value = false
     isProcessing.value = true
+    
+    // Create new abort controller for this request
+    currentAbortController = new AbortController()
+    const signal = currentAbortController.signal
+    
     console.log('🛑 Recording stopped, processing...')
 
     // Stop recording and get audio blob
@@ -145,6 +169,12 @@ const stopRecording = async () => {
     transcribedText.value = text
     console.log('✅ Transcription:', text)
 
+    // Check if request was cancelled
+    if (signal.aborted) {
+      console.log('⚠️ Request was cancelled')
+      return
+    }
+
     // Send transcribed text to assistant API
     console.log('🤖 Sending to assistant API...')
     const apiUrl = getApiUrl()
@@ -152,12 +182,18 @@ const stopRecording = async () => {
     if (apiUrl) {
       assistantApi.baseUrl = apiUrl
     }
-    const apiResponse = await assistantApi.sendQuery(text)
+    const apiResponse = await assistantApi.sendQuery(text, signal)
     
     const responseText = apiResponse.response || apiResponse.message || 'Получен ответ от ассистента'
     assistantResponse.value = responseText
     isProcessing.value = false // Stop processing indicator immediately after getting response
     console.log('✅ Assistant response:', responseText)
+
+    // Check if request was cancelled before TTS
+    if (signal.aborted) {
+      console.log('⚠️ Request was cancelled before TTS')
+      return
+    }
 
     // Convert response to speech (if enabled)
     if (props.settings?.enableTTS !== false) { // Default to true if not set
@@ -178,6 +214,13 @@ const stopRecording = async () => {
     }
 
   } catch (error) {
+    // Don't show error if request was just cancelled
+    if (error.name === 'AbortError') {
+      console.log('⚠️ Request was cancelled by user')
+      isProcessing.value = false
+      return
+    }
+    
     console.error('Failed to process recording:', error)
     errorMessage.value = error.message
     isProcessing.value = false
@@ -193,6 +236,11 @@ const stopRecording = async () => {
   width: 100%;
   max-width: 500px;
   margin: 0 auto;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 
   contain: layout;
 
@@ -219,6 +267,7 @@ const stopRecording = async () => {
     position: relative;
     max-width: 170px;
     margin: 0 auto;
+    animation: gentle-sway 4s ease-in-out infinite;
 
     .robot-img {
       width: 100%;
@@ -298,6 +347,7 @@ const stopRecording = async () => {
   }
 
   .robot-txt {
+    width: 100%;
     margin: 0 auto;
     color: #ffffff;
     font-size: 1rem;
@@ -455,6 +505,21 @@ const stopRecording = async () => {
   50% {
     transform: scale(1.2);
     opacity: 0.7;
+  }
+}
+
+@keyframes gentle-sway {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-3px) rotate(0.5deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-3px) rotate(-0.5deg);
   }
 }
 

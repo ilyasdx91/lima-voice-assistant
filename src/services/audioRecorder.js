@@ -20,13 +20,20 @@ export class AudioRecorder {
       })
 
       // Create MediaRecorder with optimal format for Whisper
-      const options = {
-        mimeType: 'audio/webm;codecs=opus'
-      }
+      let options = {}
       
-      // Fallback for Safari
-      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      // Try different formats in order of preference for Whisper
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options.mimeType = 'audio/webm;codecs=opus'
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        options.mimeType = 'audio/webm'
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
         options.mimeType = 'audio/mp4'
+      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+        options.mimeType = 'audio/wav'
+      } else {
+        // Use default format
+        options = undefined
       }
 
       this.mediaRecorder = new MediaRecorder(this.stream, options)

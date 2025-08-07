@@ -16,9 +16,21 @@ export class SpeechToTextService {
       // Prepare FormData for the API request
       const formData = new FormData()
       
-      // Convert blob to file with proper extension
-      const audioFile = new File([audioBlob], 'audio.webm', {
-        type: audioBlob.type
+      // Convert blob to file with proper extension for Whisper
+      let fileName = 'audio.webm'
+      let mimeType = 'audio/webm'
+      
+      // Determine file format based on blob type
+      if (audioBlob.type.includes('mp4')) {
+        fileName = 'audio.mp4'
+        mimeType = 'audio/mp4'
+      } else if (audioBlob.type.includes('wav')) {
+        fileName = 'audio.wav'
+        mimeType = 'audio/wav'
+      }
+      
+      const audioFile = new File([audioBlob], fileName, {
+        type: mimeType
       })
       
       formData.append('file', audioFile)

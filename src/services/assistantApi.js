@@ -9,11 +9,11 @@ export class AssistantApiService {
    * @param {string} message - User message to send
    * @returns {Promise<Object>} - API response
    */
-  async sendQuery(message) {
+  async sendQuery(message, signal = null) {
     try {
       console.log('📤 Sending query to assistant:', message)
 
-      const response = await fetch(this.baseUrl, {
+      const fetchOptions = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -22,7 +22,14 @@ export class AssistantApiService {
         body: JSON.stringify({
           message: message
         })
-      })
+      }
+      
+      // Add abort signal if provided
+      if (signal) {
+        fetchOptions.signal = signal
+      }
+
+      const response = await fetch(this.baseUrl, fetchOptions)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -42,6 +49,12 @@ export class AssistantApiService {
       
       return result
     } catch (error) {
+      // Don't log AbortError as error - it's intentional cancellation
+      if (error.name === 'AbortError') {
+        console.log('⚠️ API request was cancelled')
+        throw error
+      }
+      
       console.error('❌ Assistant API error:', error)
       throw error
     }

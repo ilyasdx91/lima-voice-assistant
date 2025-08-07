@@ -134,9 +134,9 @@
             <p>Версия: 1.0.0</p>
             <p>Голосовой ассистент с поддержкой OpenAI</p>
             <div class="tech-stack">
-              <span class="tech-badge">Vue 3</span>
-              <span class="tech-badge">OpenAI Whisper</span>
-              <span class="tech-badge">OpenAI TTS</span>
+              <span class="tech-badge white">Vue 3</span>
+              <span class="tech-badge white">OpenAI Whisper</span>
+              <span class="tech-badge white">OpenAI TTS</span>
             </div>
           </div>
         </div>
@@ -508,6 +508,12 @@ defineExpose({
     color: $primary;
     font-size: $text-xs;
     font-weight: $font-medium;
+    
+    &.white {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: $white;
+    }
   }
 }
 </style>
