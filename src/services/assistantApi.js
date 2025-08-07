@@ -32,6 +32,14 @@ export class AssistantApiService {
       const result = await response.json()
       console.log('📥 Assistant response:', result)
       
+      // Clean up response text - replace \r\n with actual line breaks
+      if (result.response) {
+        result.response = result.response.replace(/\\r\\n/g, '\n').replace(/\r\n/g, '\n')
+      }
+      if (result.message) {
+        result.message = result.message.replace(/\\r\\n/g, '\n').replace(/\r\n/g, '\n')
+      }
+      
       return result
     } catch (error) {
       console.error('❌ Assistant API error:', error)

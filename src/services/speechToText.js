@@ -22,7 +22,7 @@ export class SpeechToTextService {
       })
       
       formData.append('file', audioFile)
-      formData.append('model', options.model || 'whisper-1')
+      formData.append('model', 'whisper-1')
       formData.append('language', options.language || 'ru') // Russian by default
       formData.append('response_format', options.format || 'text')
       

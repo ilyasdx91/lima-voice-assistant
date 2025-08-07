@@ -35,10 +35,10 @@
       <p v-if="!transcribedText && !errorMessage && !isProcessing && !assistantResponse">✨ Готов помочь! О чём поговорим?</p>
       <p v-else-if="isProcessing" class="processing">🔄 Обрабатываю запись...</p>
       <p v-else-if="errorMessage" class="error">❌ {{ errorMessage }}</p>
-      <p v-else-if="assistantResponse" class="assistant-response" :class="{ speaking: isSpeaking }">
-        🤖 {{ assistantResponse }}
+      <div v-else-if="assistantResponse" class="assistant-response" :class="{ speaking: isSpeaking }">
+        <pre>{{ assistantResponse }}</pre>
         <span v-if="isSpeaking" class="speaking-indicator">🔊</span>
-      </p>
+      </div>
       <p v-else-if="transcribedText" class="transcribed">💬 {{ transcribedText }}</p>
     </div>
 
@@ -297,20 +297,33 @@ const stopRecording = async () => {
         color: #4ECDC4;
       }
       
-      &.assistant-response {
-        color: #71BBF0;
-        font-weight: 500;
-        
-        &.speaking {
-          animation: pulse-text 1.5s infinite;
-        }
-        
-        .speaking-indicator {
-          display: inline-block;
-          margin-left: 8px;
-          animation: pulse-speaker 0.8s infinite;
-        }
-      }
+    }
+  }
+  
+  .assistant-response {
+    color: $white;
+    font-weight: 500;
+    text-align: left;
+    
+    &.speaking {
+      animation: pulse-text 1.5s infinite;
+    }
+    
+    pre {
+      margin: 0;
+      font-family: inherit;
+      font-size: inherit;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: $white;
+      text-align: left;
+    }
+    
+    .speaking-indicator {
+      display: inline-block;
+      margin-left: 8px;
+      animation: pulse-speaker 0.8s infinite;
+      color: #71BBF0;
     }
   }
 
