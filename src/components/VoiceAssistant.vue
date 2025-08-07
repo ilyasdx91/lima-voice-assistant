@@ -31,13 +31,14 @@
       </div>
     </div>
 
-    <div class="robot-txt">
+    <div class="robot-txt" :class="{ speaking: isSpeaking }">
+      <div v-if="isSpeaking" class="speaking-indicator">🔊</div>
+      
       <p v-if="!transcribedText && !errorMessage && !isProcessing && !assistantResponse">✨ Готов помочь! О чём поговорим?</p>
       <p v-else-if="isProcessing" class="processing">🔄 Обрабатываю запись...</p>
       <p v-else-if="errorMessage" class="error">❌ {{ errorMessage }}</p>
-      <div v-else-if="assistantResponse" class="assistant-response" :class="{ speaking: isSpeaking }">
+      <div v-else-if="assistantResponse" class="assistant-response">
         <pre>{{ assistantResponse }}</pre>
-        <span v-if="isSpeaking" class="speaking-indicator">🔊</span>
       </div>
       <p v-else-if="transcribedText" class="transcribed">💬 {{ transcribedText }}</p>
     </div>
@@ -63,6 +64,13 @@
 
 <script setup>
 import { ref } from 'vue'
+
+const props = defineProps({
+  settings: {
+    type: Object,
+    default: () => ({})
+  }
+})
 import { AudioRecorder } from '@/services/audioRecorder.js'
 import { SpeechToTextService } from '@/services/speechToText.js'
 import { AssistantApiService } from '@/services/assistantApi.js'
@@ -77,9 +85,23 @@ const errorMessage = ref('')
 
 // Initialize services
 const audioRecorder = new AudioRecorder()
-const speechService = new SpeechToTextService(import.meta.env.VITE_OPENAI_API_KEY)
+
+// Helper function to get API key from settings or env
+const getApiKey = () => {
+  return props.settings?.openaiApiKey || import.meta.env.VITE_OPENAI_API_KEY
+}
+
+const getApiUrl = () => {
+  const url = props.settings?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL
+  console.log('🎯 Settings API URL:', props.settings?.apiBaseUrl)
+  console.log('🌍 ENV API URL:', import.meta.env.VITE_API_BASE_URL)
+  console.log('✅ Final API URL:', url)
+  return url
+}
+
+const speechService = new SpeechToTextService()
 const assistantApi = new AssistantApiService(import.meta.env.VITE_API_BASE_URL)
-const ttsService = new TextToSpeechService(import.meta.env.VITE_OPENAI_API_KEY)
+const ttsService = new TextToSpeechService()
 
 const startRecording = async () => {
   try {
@@ -114,8 +136,9 @@ const stopRecording = async () => {
     const audioBlob = await audioRecorder.stopRecording()
     
     // Send to Whisper API for transcription
+    speechService.apiKey = getApiKey()
     const text = await speechService.transcribeAudio(audioBlob, {
-      language: 'ru',
+      language: props.settings?.language || 'ru',
       model: 'whisper-1'
     })
 
@@ -124,31 +147,39 @@ const stopRecording = async () => {
 
     // Send transcribed text to assistant API
     console.log('🤖 Sending to assistant API...')
+    const apiUrl = getApiUrl()
+    console.log('🔗 API URL:', apiUrl)
+    if (apiUrl) {
+      assistantApi.baseUrl = apiUrl
+    }
     const apiResponse = await assistantApi.sendQuery(text)
     
     const responseText = apiResponse.response || apiResponse.message || 'Получен ответ от ассистента'
     assistantResponse.value = responseText
+    isProcessing.value = false // Stop processing indicator immediately after getting response
     console.log('✅ Assistant response:', responseText)
 
-    // Convert response to speech
-    isSpeaking.value = true
-    try {
-      await ttsService.speakText(responseText, {
-        voice: 'nova', // Female Russian voice
-        model: 'tts-1',
-        speed: 1.0
-      })
-    } catch (ttsError) {
-      console.error('TTS error:', ttsError)
-      // Don't throw - show text response even if speech fails
-    } finally {
-      isSpeaking.value = false
+    // Convert response to speech (if enabled)
+    if (props.settings?.enableTTS !== false) { // Default to true if not set
+      isSpeaking.value = true
+      try {
+        ttsService.apiKey = getApiKey()
+        await ttsService.speakText(responseText, {
+          voice: props.settings?.voice || 'shimmer',
+          model: props.settings?.ttsModel || 'tts-1',
+          speed: props.settings?.speechSpeed || 1.0
+        })
+      } catch (ttsError) {
+        console.error('TTS error:', ttsError)
+        // Don't throw - show text response even if speech fails
+      } finally {
+        isSpeaking.value = false
+      }
     }
 
   } catch (error) {
     console.error('Failed to process recording:', error)
     errorMessage.value = error.message
-  } finally {
     isProcessing.value = false
   }
 }
@@ -280,6 +311,7 @@ const stopRecording = async () => {
 
     max-width: calc(100vw - 64px);
     word-break: break-word;
+    position: relative;
 
     p {
       margin: 0;
@@ -300,6 +332,23 @@ const stopRecording = async () => {
     }
   }
   
+  .speaking-indicator {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 1.2em;
+    color: #71BBF0;
+    animation: pulse-speaker 0.8s infinite;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .assistant-response {
     color: $white;
     font-weight: 500;
@@ -317,13 +366,6 @@ const stopRecording = async () => {
       word-break: break-word;
       color: $white;
       text-align: left;
-    }
-    
-    .speaking-indicator {
-      display: inline-block;
-      margin-left: 8px;
-      animation: pulse-speaker 0.8s infinite;
-      color: #71BBF0;
     }
   }
 

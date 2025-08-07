@@ -16,6 +16,20 @@
           <h4>🎙️ Голос и речь</h4>
           
           <div class="setting-item">
+            <label class="switch-label">
+              <span>Голосовые ответы:</span>
+              <label class="switch">
+                <input 
+                  type="checkbox" 
+                  v-model="settings.enableTTS" 
+                  @change="updateSettings"
+                >
+                <span class="switch-slider"></span>
+              </label>
+            </label>
+          </div>
+
+          <div class="setting-item" v-show="settings.enableTTS">
             <label>Голос TTS:</label>
             <select v-model="settings.voice" @change="updateSettings">
               <option value="nova">Nova (Женский)</option>
@@ -27,7 +41,7 @@
             </select>
           </div>
 
-          <div class="setting-item">
+          <div class="setting-item" v-show="settings.enableTTS">
             <label>Скорость речи:</label>
             <div class="slider-container">
               <input 
@@ -43,7 +57,7 @@
             </div>
           </div>
 
-          <div class="setting-item">
+          <div class="setting-item" v-show="settings.enableTTS">
             <label>Качество TTS:</label>
             <select v-model="settings.ttsModel" @change="updateSettings">
               <option value="tts-1">Стандартное (быстро)</option>
@@ -150,7 +164,8 @@ const showApiKey = ref(false)
 
 // Settings reactive object
 const settings = reactive({
-  voice: 'nova',
+  enableTTS: true,
+  voice: 'shimmer',
   speechSpeed: 1.0,
   ttsModel: 'tts-1',
   language: 'ru',
@@ -164,12 +179,19 @@ const loadSettings = () => {
     const savedSettings = localStorage.getItem('lima-settings')
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings)
+      
+      // Fix old API URL if it doesn't include the full path
+      if (parsed.apiBaseUrl && !parsed.apiBaseUrl.includes('/api/assistant/query')) {
+        delete parsed.apiBaseUrl // Remove incorrect URL, will use env default
+      }
+      
       Object.assign(settings, parsed)
     }
     
     // Load from env if not in localStorage
     if (!settings.openaiApiKey) {
-      settings.openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY || ''
+      // Don't show the default API key for security
+      settings.openaiApiKey = ''
     }
     if (!settings.apiBaseUrl) {
       settings.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
@@ -301,6 +323,64 @@ defineExpose({
     margin: 0 0 $spacing-lg 0;
     font-size: $text-lg;
     font-weight: $font-medium;
+  }
+}
+
+.switch-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  
+  span {
+    color: $text-secondary;
+    font-size: $text-sm;
+    font-weight: $font-medium;
+  }
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.2);
+    transition: $transition-normal;
+    border-radius: 24px;
+    
+    &:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: $white;
+      transition: $transition-normal;
+      border-radius: 50%;
+    }
+  }
+  
+  input:checked + .switch-slider {
+    background-color: $primary;
+  }
+  
+  input:checked + .switch-slider:before {
+    transform: translateX(20px);
   }
 }
 
