@@ -116,43 +116,94 @@ export class TextToSpeechService {
   async playAudioBufferIOS(audioData) {
     return new Promise((resolve, reject) => {
       try {
+        console.log('🍎 iOS TTS playback starting...')
+        
         // Создаем Blob из ArrayBuffer
-        const audioBlob = new Blob([audioData], { type: 'audio/mp3' })
+        const audioBlob = new Blob([audioData], { type: 'audio/mpeg' })
         const audioUrl = URL.createObjectURL(audioBlob)
         
         // Создаем HTML5 Audio элемент
-        const audio = new Audio(audioUrl)
+        const audio = new Audio()
         
-        // Настройки для iPhone
-        audio.preload = 'auto'
+        // Настройки для iPhone - критично важные для iOS Safari
+        audio.crossOrigin = 'anonymous'
+        audio.preload = 'metadata'
         audio.volume = 1.0
+        audio.muted = false
         
-        // Попытка воспроизведения через все доступные выходы
-        if (audio.setSinkId) {
-          // Если поддерживается выбор аудиоустройства, используем default
-          audio.setSinkId('default').catch(() => {
-            console.log('setSinkId not supported, using default output')
-          })
-        }
+        // Устанавливаем источник после настройки
+        audio.src = audioUrl
         
         this.currentAudio = audio
         
+        // Обработчики событий
+        audio.oncanplaythrough = () => {
+          console.log('🍎 Audio can play through')
+        }
+        
+        audio.onloadeddata = () => {
+          console.log('🍎 Audio data loaded')
+        }
+        
+        audio.onplay = () => {
+          console.log('🍎 Audio started playing')
+          // Показать успех на iPhone
+          document.body.insertAdjacentHTML('afterbegin', 
+            `<div style="position:fixed;top:0;left:0;right:0;background:green;color:white;padding:5px;z-index:9999;font-size:12px;">🍎 TTS Playing</div>`
+          )
+          setTimeout(() => {
+            const indicator = document.querySelector('div[style*="background:green"]')
+            if (indicator) indicator.remove()
+          }, 2000)
+        }
+        
         audio.onended = () => {
+          console.log('🍎 Audio playback ended')
           URL.revokeObjectURL(audioUrl)
           this.currentAudio = null
           resolve()
         }
         
         audio.onerror = (error) => {
+          console.error('🍎 iOS Audio error:', error)
+          console.error('🍎 Audio error details:', audio.error)
+          
+          // Показать ошибку в интерфейсе для отладки на iPhone
+          const errorMsg = `TTS Error: ${audio.error?.code || 'unknown'} - ${audio.error?.message || 'Audio playback failed'}`
+          document.body.insertAdjacentHTML('afterbegin', 
+            `<div style="position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;z-index:9999;font-size:12px;">${errorMsg}</div>`
+          )
+          
           URL.revokeObjectURL(audioUrl)
           this.currentAudio = null
-          reject(error)
+          reject(new Error(`iOS Audio Error: ${audio.error?.message || 'Unknown error'}`))
         }
         
-        // Запуск воспроизведения
-        audio.play().catch(reject)
+        audio.onpause = () => {
+          console.log('🍎 Audio paused')
+        }
+        
+        // Загружаем аудио данные
+        audio.load()
+        
+        // Запуск воспроизведения с дополнительными проверками
+        const playPromise = audio.play()
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('🍎 Audio play() promise resolved successfully')
+            })
+            .catch(error => {
+              console.error('🍎 Audio play() promise rejected:', error)
+              reject(new Error(`iOS Play Error: ${error.message}`))
+            })
+        } else {
+          console.log('🍎 Audio play() returned undefined (older browser)')
+        }
         
       } catch (error) {
+        console.error('🍎 iOS TTS setup error:', error)
         reject(error)
       }
     })
