@@ -45,11 +45,13 @@
 
     <button 
       class="btn btn-voice" 
-      :class="{ recording: isRecording }"
-      @mousedown="startRecording" 
-      @mouseup="stopRecording"
-      @touchstart.prevent="startRecording"
-      @touchend.prevent="stopRecording"
+      :class="{ recording: isRecording, pressed: isButtonPressed }"
+      @mousedown="handleButtonPress" 
+      @mouseup="handleButtonRelease"
+      @mouseleave="handleButtonRelease"
+      @touchstart.prevent="handleButtonPress"
+      @touchend.prevent="handleButtonRelease"
+      @touchcancel.prevent="handleButtonRelease"
       @contextmenu.prevent
       @selectstart.prevent
     >
@@ -87,6 +89,10 @@ const errorMessage = ref('')
 let currentAbortController = null
 let requestCounter = 0 // Counter to track requests
 
+// Recording state management
+let recordingTimeout = null
+let isButtonPressed = ref(false)
+
 // Initialize services
 const audioRecorder = new AudioRecorder()
 
@@ -96,7 +102,7 @@ const getApiKey = () => {
 }
 
 const getApiUrl = () => {
-  const url = props.settings?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL || 'https://2772de394ff5.ngrok-free.app/api/assistant/query'
+  const url = props.settings?.apiBaseUrl || import.meta.env.VITE_API_BASE_URL || 'https://fea4d9ce67a0.ngrok-free.app/api/assistant/query'
   console.log('🎯 Settings API URL:', props.settings?.apiBaseUrl)
   console.log('🌍 ENV API URL:', import.meta.env.VITE_API_BASE_URL)
   console.log('✅ Final API URL:', url)
@@ -104,7 +110,7 @@ const getApiUrl = () => {
 }
 
 const speechService = new SpeechToTextService()
-const assistantApi = new AssistantApiService(import.meta.env.VITE_API_BASE_URL || 'https://2772de394ff5.ngrok-free.app/api/assistant/query')
+const assistantApi = new AssistantApiService(import.meta.env.VITE_API_BASE_URL || 'https://fea4d9ce67a0.ngrok-free.app/api/assistant/query')
 const ttsService = new TextToSpeechService()
 
 const startRecording = async () => {
@@ -128,15 +134,23 @@ const startRecording = async () => {
     errorMessage.value = ''
     
     // Prevent duplicate calls
-    if (isRecording.value || isProcessing.value) return
+    if (isRecording.value || isProcessing.value || !isButtonPressed.value) return
     
     if (!AudioRecorder.isSupported()) {
       throw new Error('Audio recording not supported in this browser')
     }
 
-    await audioRecorder.startRecording()
-    isRecording.value = true
-    console.log('🎤 Recording started')
+    // Задержка 0.3 секунды перед началом записи
+    recordingTimeout = setTimeout(async () => {
+      // Проверяем что кнопка все еще зажата
+      if (!isButtonPressed.value) return
+      
+      await audioRecorder.startRecording()
+      isRecording.value = true
+      console.log('🎤 Recording started (after 0.3s delay)')
+    }, 300)
+    
+    console.log('⏳ Recording will start in 0.3s...')
   } catch (error) {
     console.error('Failed to start recording:', error)
     errorMessage.value = error.message
@@ -145,8 +159,20 @@ const startRecording = async () => {
 
 const stopRecording = async () => {
   try {
+    // Очищаем timeout если кнопку отпустили до начала записи
+    if (recordingTimeout) {
+      clearTimeout(recordingTimeout)
+      recordingTimeout = null
+    }
+    
+    // Если запись еще не началась, просто выходим
+    if (!audioRecorder.isRecording) {
+      console.log('📋 Recording cancelled (button released too early)')
+      return
+    }
+    
     // Prevent duplicate calls
-    if (!audioRecorder.isRecording || isProcessing.value) return
+    if (isProcessing.value) return
 
     isRecording.value = false
     isProcessing.value = true
@@ -247,6 +273,19 @@ const stopRecording = async () => {
     errorMessage.value = error.message
     isProcessing.value = false
   }
+}
+
+// Новые обработчики для кнопки
+const handleButtonPress = async () => {
+  isButtonPressed.value = true
+  console.log('🔘 Button pressed')
+  await startRecording()
+}
+
+const handleButtonRelease = async () => {
+  isButtonPressed.value = false
+  console.log('🔘 Button released')
+  await stopRecording()
 }
 </script>
 

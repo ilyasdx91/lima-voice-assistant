@@ -61,6 +61,11 @@ export class TextToSpeechService {
       // Stop current audio if playing
       this.stopCurrentAudio()
 
+      // Для iPhone - используем обычный HTML5 Audio для лучшей совместимости с динамиками
+      if (this.isiOS()) {
+        return await this.playAudioBufferIOS(audioData)
+      }
+
       // Create audio context if not exists
       if (!this.audioContext) {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
@@ -77,7 +82,13 @@ export class TextToSpeechService {
       // Create and configure buffer source
       const source = this.audioContext.createBufferSource()
       source.buffer = audioBuffer
-      source.connect(this.audioContext.destination)
+      
+      // Для лучшего воспроизведения на мобильных устройствах
+      const gainNode = this.audioContext.createGain()
+      gainNode.gain.value = 1.0
+      
+      source.connect(gainNode)
+      gainNode.connect(this.audioContext.destination)
       
       // Store reference for stopping
       this.currentAudio = source
@@ -99,15 +110,81 @@ export class TextToSpeechService {
   }
 
   /**
+   * Play audio buffer specifically for iOS devices
+   * @param {ArrayBuffer} audioData - Audio data to play
+   */
+  async playAudioBufferIOS(audioData) {
+    return new Promise((resolve, reject) => {
+      try {
+        // Создаем Blob из ArrayBuffer
+        const audioBlob = new Blob([audioData], { type: 'audio/mp3' })
+        const audioUrl = URL.createObjectURL(audioBlob)
+        
+        // Создаем HTML5 Audio элемент
+        const audio = new Audio(audioUrl)
+        
+        // Настройки для iPhone
+        audio.preload = 'auto'
+        audio.volume = 1.0
+        
+        // Попытка воспроизведения через все доступные выходы
+        if (audio.setSinkId) {
+          // Если поддерживается выбор аудиоустройства, используем default
+          audio.setSinkId('default').catch(() => {
+            console.log('setSinkId not supported, using default output')
+          })
+        }
+        
+        this.currentAudio = audio
+        
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl)
+          this.currentAudio = null
+          resolve()
+        }
+        
+        audio.onerror = (error) => {
+          URL.revokeObjectURL(audioUrl)
+          this.currentAudio = null
+          reject(error)
+        }
+        
+        // Запуск воспроизведения
+        audio.play().catch(reject)
+        
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  /**
+   * Detect if running on iOS
+   * @returns {boolean}
+   */
+  isiOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  }
+
+  /**
    * Stop current audio playback
    */
   stopCurrentAudio() {
     if (this.currentAudio) {
       try {
-        this.currentAudio.stop()
+        // Для HTML5 Audio используем pause() и reset
+        if (this.currentAudio.pause) {
+          this.currentAudio.pause()
+          this.currentAudio.currentTime = 0
+        } else {
+          // Для AudioContext используем stop()
+          this.currentAudio.stop()
+        }
         this.currentAudio = null
       } catch (error) {
         console.warn('Error stopping audio:', error)
+        this.currentAudio = null
       }
     }
   }
@@ -117,7 +194,15 @@ export class TextToSpeechService {
    * @returns {boolean}
    */
   isSpeaking() {
-    return this.currentAudio !== null
+    if (!this.currentAudio) return false
+    
+    // Для HTML5 Audio проверяем статус воспроизведения
+    if (this.currentAudio.paused !== undefined) {
+      return !this.currentAudio.paused && !this.currentAudio.ended
+    }
+    
+    // Для AudioContext просто проверяем наличие объекта
+    return true
   }
 
   /**

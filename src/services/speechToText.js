@@ -1,4 +1,6 @@
 // OpenAI Whisper Speech-to-Text Service
+import medicineTerms from '@/data/medicine-terms.json'
+
 export class SpeechToTextService {
   constructor(apiKey) {
     this.apiKey = apiKey
@@ -38,13 +40,13 @@ export class SpeechToTextService {
       formData.append('language', options.language || 'ru') // Russian by default
       formData.append('response_format', options.format || 'text')
       
-      // Add optional parameters
-      if (options.prompt) {
-        formData.append('prompt', options.prompt)
-      }
+      // Добавляем temperature для более точного распознавания
+      formData.append('temperature', '0.0')
       
-      if (options.temperature !== undefined) {
-        formData.append('temperature', options.temperature.toString())
+      // Создаем prompt с медицинскими терминами для улучшения распознавания
+      const prompt = this.createMedicalPrompt(options.prompt)
+      if (prompt) {
+        formData.append('prompt', prompt)
       }
 
       console.log('🔊 Sending audio to Whisper API...')
@@ -87,6 +89,23 @@ export class SpeechToTextService {
     
     const response = await this.transcribeAudio(audioBlob, detailedOptions)
     return JSON.parse(response)
+  }
+
+  /**
+   * Создает prompt с медицинскими терминами для улучшения распознавания
+   * @param {string} customPrompt - Дополнительный пользовательский prompt
+   * @returns {string} - Готовый prompt для Whisper
+   */
+  createMedicalPrompt(customPrompt = '') {
+    // Берем случайные 20 терминов для prompt (ограничение Whisper API)
+    const randomTerms = medicineTerms
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 20)
+      .join(', ')
+    
+    const medicalContext = `Медицинские препараты: ${randomTerms}.`
+    
+    return customPrompt ? `${medicalContext} ${customPrompt}` : medicalContext
   }
 
   /**

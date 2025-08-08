@@ -183,7 +183,8 @@ const loadSettings = () => {
       // Fix old API URLs - force refresh to new URL
       if (parsed.apiBaseUrl && (
         parsed.apiBaseUrl.includes('e8a2cb152faa.ngrok-free.app') ||
-        parsed.apiBaseUrl.includes('05dcb94d8958.ngrok-free.app')
+        parsed.apiBaseUrl.includes('05dcb94d8958.ngrok-free.app') ||
+        parsed.apiBaseUrl.includes('2772de394ff5.ngrok-free.app')
       )) {
         delete parsed.apiBaseUrl // Remove old ngrok URLs, will use new env default
         console.log('🧹 Removed old ngrok URL from localStorage')
@@ -198,7 +199,7 @@ const loadSettings = () => {
       settings.openaiApiKey = ''
     }
     if (!settings.apiBaseUrl) {
-      settings.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://2772de394ff5.ngrok-free.app/api/assistant/query'
+      settings.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://fea4d9ce67a0.ngrok-free.app/api/assistant/query'
     }
   } catch (error) {
     console.error('Failed to load settings:', error)
